@@ -578,6 +578,8 @@ namespace Ogre
                 RenderOperation::OperationType opType);
             virtual ~ManualObjectSection();
 
+            /// The parent ManualObject
+            ManualObject* getParent() const { return mParent; }
             /// Retrieve render operation for manipulation
             RenderOperation* getRenderOperation(void);
             /// Retrieve the material name in use
