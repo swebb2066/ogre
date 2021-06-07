@@ -76,10 +76,18 @@ namespace Ogre {
             for (idx = 0; idx < iNumElements; ++idx)
             {
                 D3D11_SIGNATURE_PARAMETER_DESC inputDesc = boundVertexProgram->getInputParamDesc(idx);
-                VertexElementList::const_iterator i, iend;
-                iend = mElementList.end();
+                D3D11_INPUT_ELEMENT_DESC elem = {};
+                elem.SemanticName          = inputDesc.SemanticName;
+                elem.SemanticIndex         = inputDesc.SemanticIndex;
+                elem.Format                = DXGI_FORMAT_UNKNOWN;
+                elem.InputSlot             = 0;
+                elem.AlignedByteOffset     = 0;
+                elem.InputSlotClass        = D3D11_INPUT_PER_VERTEX_DATA;
+                elem.InstanceDataStepRate  = 0;
+
                 bool found = false;
-                for (i = mElementList.begin(); i != iend; ++i)
+                for (VertexElementList::const_iterator i = mElementList.begin();
+                    i != mElementList.end(); ++i)
                 {
                     LPCSTR semanticName         = D3D11Mappings::get(i->getSemantic());
                     UINT semanticIndex          = i->getIndex();
@@ -88,6 +96,9 @@ namespace Ogre {
                         && semanticIndex == inputDesc.SemanticIndex
                       )
                     {
+                        elem.Format            = D3D11Mappings::get(i->getType());
+                        elem.InputSlot         = i->getSource();
+                        elem.AlignedByteOffset = static_cast<WORD>(i->getOffset());
                         found = true;
                         break;
                     }
@@ -95,23 +106,14 @@ namespace Ogre {
 
                 if (!found)
                 {
-                    OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
-                                StringUtil::format("No VertexElement for semantic %s%d in shader %s found",
-                                                   inputDesc.SemanticName, inputDesc.SemanticIndex,
-                                                   boundVertexProgram->getName().c_str()));
+                    if (0 == strcmp(inputDesc.SemanticName, "NORMAL"))
+                        elem.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+                    else if (0 == strcmp(inputDesc.SemanticName, "COLOR"))
+                        elem.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
                 }
 
-                D3D11_INPUT_ELEMENT_DESC elem = {};
-                elem.SemanticName          = inputDesc.SemanticName;
-                elem.SemanticIndex         = inputDesc.SemanticIndex;
-                elem.Format                = D3D11Mappings::get(i->getType());
-                elem.InputSlot             = i->getSource();
-                elem.AlignedByteOffset     = static_cast<WORD>(i->getOffset());
-                elem.InputSlotClass        = D3D11_INPUT_PER_VERTEX_DATA;
-                elem.InstanceDataStepRate  = 0;
-
                 VertexBufferBinding::VertexBufferBindingMap::const_iterator foundIter;
-                foundIter = binding->getBindings().find(i->getSource());
+                foundIter = binding->getBindings().find(elem.InputSlot);
                 if ( foundIter != binding->getBindings().end() )
                 {
                     HardwareVertexBufferSharedPtr bufAtSlot = foundIter->second;
